@@ -13,6 +13,10 @@ class CsvSource:
     def row(self) -> Iterator[Customer]:
         with self.path.open("r") as f:
             reader = csv.DictReader(f)
+            expected = set(Customer.header())
+            missing = expected.difference(reader.fieldnames or [])
+            if missing:
+                raise ValueError(f"Missing headers: {missing}")
             for row in cast(Iterator[dict[str, str]], reader):
                 try:
                     name = str(row["Name"]).strip()
