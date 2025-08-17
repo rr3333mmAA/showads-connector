@@ -16,8 +16,10 @@ def process_csv(path: str, config: Config, age_limit: AgeLimit) -> None:
     valid_customers = 0
     invalid_customers = 0
     for customer in source.row():
-        if not validate_customer(customer, age_limit, config):
+        is_valid, error_message = validate_customer(customer, age_limit, config)
+        if not is_valid:
             invalid_customers += 1
+            logger.error(f"Invalid customer skipped: {error_message}")
             continue
         banner = Banner.from_customer(customer)
         client.show_banner(banner)
