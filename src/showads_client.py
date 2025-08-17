@@ -1,11 +1,12 @@
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import Iterable, Optional, cast
 
 import requests
 
 from .config import Config
+from .models import Banner
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,30 @@ class ShowAdsClient:
         self._token = token
         logger.info("Obtained access token")
         return token
+    
+    def show_banner(self, banner: Banner) -> bool:
+        url = f"{self._config.api_base_url}/banners/show"
+        payload = {
+            "VisitorCookie": banner.visitor_cookie,
+            "BannerId": banner.banner_id
+        }
+        return self._post(url, payload)
+    
+    def show_banners_bulk(self, banners: Iterable[Banner]) -> bool:
+        url = f"{self._config.api_base_url}/banners/show/bulk"
+        items = [{"VisitorCookie": banner.visitor_cookie, "BannerId": banner.banner_id} for banner in banners]
+        payload = {"Data": items}
+        return self._post(url, payload)
+    
+    def _post(self, url: str, payload: object) -> bool:
+        headers = {"Content-Type": "application/json"}
+        headers.update(self._auth_header())
+        response = self._session.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.status_code == 200
 
 if __name__ == "__main__":
     config = Config.load()
     client = ShowAdsClient(config)
-    print(client._auth_header())
+    print(client.show_banner(Banner(visitor_cookie="test", banner_id=1)))
+    print(client.show_banners_bulk([Banner(visitor_cookie="test", banner_id=1), Banner(visitor_cookie="test", banner_id=2)]))

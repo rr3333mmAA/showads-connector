@@ -19,3 +19,12 @@ class AgeLimit:
 
     def is_valid(self, age: int) -> bool:
         return self.min_age <= age <= self.max_age
+
+@dataclass(frozen=True)
+class Banner:
+    visitor_cookie: str
+    banner_id: int
+
+    @classmethod
+    def from_customer(cls, customer: Customer) -> "Banner":
+        return cls(visitor_cookie=customer.cookie, banner_id=customer.banner_id)
