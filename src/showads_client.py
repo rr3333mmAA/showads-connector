@@ -35,7 +35,7 @@ class ShowAdsClient:
         payload = {
             "ProjectKey": self._config.project_key
         }
-        for _ in range(self._config.max_retries):
+        for attempt in range(self._config.max_retries):
             try:
                 response = self._session.post(url, json=payload)
                 if response.status_code == 200:
@@ -52,11 +52,17 @@ class ShowAdsClient:
                     return token
                 if response.status_code in (401, 400):
                     raise RuntimeError(f"Auth request failed: {response.status_code} {response.text}")
-                continue
+                # if status_code in (429, 500), we continue with backoff
+                self._backoff(attempt)
             except requests.RequestException as e:
                 logger.warning(f"Auth request error: {e}")
+                self._backoff(attempt)
         raise RuntimeError("Failed to obtain access token")
     
+    def _backoff(self, attempt: int) -> None:
+        delay = self._config.retry_backoff_seconds * (2.0 ** attempt)
+        time.sleep(min(delay, 30))
+
     def show_banner(self, banner: Banner) -> bool:
         url = f"{self._config.api_base_url}/banners/show"
         payload = {
@@ -73,7 +79,7 @@ class ShowAdsClient:
     
     def _post_with_retry(self, url: str, payload: object) -> bool:
         headers = {"Content-Type": "application/json"}
-        for _ in range(self._config.max_retries):
+        for attempt in range(self._config.max_retries):
             try:
                 headers.update(self._auth_header())
                 response = self._session.post(url, json=payload, headers=headers)
@@ -86,8 +92,8 @@ class ShowAdsClient:
                 if response.status_code == 400:
                     logger.error(f"Bad request {response.status_code}: {response.text}")
                     return False
-                if response.status_code in (429, 500):
-                    continue
+                # if status_code in (429, 500), we continue with backoff
+                self._backoff(attempt)
             except requests.RequestException as e:
                 logger.warning(f"Request error: {e}")
         return False
