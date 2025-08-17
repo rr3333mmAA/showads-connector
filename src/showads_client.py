@@ -78,9 +78,9 @@ class ShowAdsClient:
         return self._post_with_retry(url, payload)
     
     def _post_with_retry(self, url: str, payload: object) -> bool:
-        headers = {"Content-Type": "application/json"}
         for attempt in range(self._config.max_retries):
             try:
+                headers = {"Content-Type": "application/json"}
                 headers.update(self._auth_header())
                 response = self._session.post(url, json=payload, headers=headers)
                 if response.status_code == 200:
