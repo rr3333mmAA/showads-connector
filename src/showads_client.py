@@ -97,9 +97,3 @@ class ShowAdsClient:
             except requests.RequestException as e:
                 logger.warning(f"Request error: {e}")
         return False
-
-if __name__ == "__main__":
-    config = Config.load()
-    client = ShowAdsClient(config)
-    print(client.show_banner(Banner(visitor_cookie="test", banner_id=1)))
-    print(client.show_banners_bulk([Banner(visitor_cookie="test", banner_id=1), Banner(visitor_cookie="test", banner_id=2)]))
