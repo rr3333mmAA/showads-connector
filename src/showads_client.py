@@ -35,19 +35,27 @@ class ShowAdsClient:
         payload = {
             "ProjectKey": self._config.project_key
         }
-        response = self._session.post(url, json=payload)
-        response.raise_for_status()
-        data = cast(dict[str, str], response.json())
-        access_token = data.get("AccessToken")
-        if not access_token:
-            raise RuntimeError("Missing AccessToken in auth response")
-        token = Token(
-            access_token=access_token,
-            expires_at=time.time() + self._config.token_expiry_seconds
-        )
-        self._token = token
-        logger.info("Obtained access token")
-        return token
+        for _ in range(self._config.max_retries):
+            try:
+                response = self._session.post(url, json=payload)
+                if response.status_code == 200:
+                    data = cast(dict[str, str], response.json())
+                    access_token = data.get("AccessToken")
+                    if not access_token:
+                        raise RuntimeError("Missing AccessToken in auth response")
+                    token = Token(
+                        access_token=access_token,
+                        expires_at=time.time() + self._config.token_expiry_seconds
+                    )
+                    self._token = token
+                    logger.info("Obtained access token")
+                    return token
+                if response.status_code in (401, 400):
+                    raise RuntimeError(f"Auth request failed: {response.status_code} {response.text}")
+                continue
+            except requests.RequestException as e:
+                logger.warning(f"Auth request error: {e}")
+        raise RuntimeError("Failed to obtain access token")
     
     def show_banner(self, banner: Banner) -> bool:
         url = f"{self._config.api_base_url}/banners/show"
@@ -55,20 +63,34 @@ class ShowAdsClient:
             "VisitorCookie": banner.visitor_cookie,
             "BannerId": banner.banner_id
         }
-        return self._post(url, payload)
+        return self._post_with_retry(url, payload)
     
     def show_banners_bulk(self, banners: Iterable[Banner]) -> bool:
         url = f"{self._config.api_base_url}/banners/show/bulk"
         items = [{"VisitorCookie": banner.visitor_cookie, "BannerId": banner.banner_id} for banner in banners]
         payload = {"Data": items}
-        return self._post(url, payload)
+        return self._post_with_retry(url, payload)
     
-    def _post(self, url: str, payload: object) -> bool:
+    def _post_with_retry(self, url: str, payload: object) -> bool:
         headers = {"Content-Type": "application/json"}
-        headers.update(self._auth_header())
-        response = self._session.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        return response.status_code == 200
+        for _ in range(self._config.max_retries):
+            try:
+                headers.update(self._auth_header())
+                response = self._session.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    return True
+                if response.status_code == 401:
+                    logger.info("Access token expired or invalid, refreshing")
+                    self._refresh_token()
+                    continue
+                if response.status_code == 400:
+                    logger.error(f"Bad request {response.status_code}: {response.text}")
+                    return False
+                if response.status_code in (429, 500):
+                    continue
+            except requests.RequestException as e:
+                logger.warning(f"Request error: {e}")
+        return False
 
 if __name__ == "__main__":
     config = Config.load()
