@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 def process_csv(path: str, config: Config, age_limit: AgeLimit, client: ShowAdsClient) -> None:
     source = CsvSource(Path(path))
 
+    logger.info(f"Processing CSV file: {path}")
+
     buffer: list[Banner] = []
     valid_customers = 0
     invalid_customers = 0
@@ -43,14 +45,3 @@ def _show_banners_with_fallback(client: ShowAdsClient, banners: list[Banner]) ->
     for banner in banners:
         if not client.show_banner(banner):
             logger.error(f"Failed to show banner: {banner}")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    config = Config.load()
-    age_limit = AgeLimit()
-    client = ShowAdsClient(config)
-    print("Processing data_valid.csv")
-    process_csv("data_valid.csv", config, age_limit, client)
-    print("Processing data_invalid.csv")
-    process_csv("data_invalid.csv", config, age_limit, client)
