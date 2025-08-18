@@ -1,22 +1,12 @@
 import argparse
-import logging
-import os
 import sys
 from typing import cast
 
 from .config import Config
+from .logger import setup_logging
 from .models import AgeLimit
 from .processor import process_csv
 from .showads_client import ShowAdsClient
-
-
-def _setup_logging() -> None:
-	"""Configure root logger from LOG_LEVEL env var (defaults to INFO)."""
-	level_name: str = os.getenv("LOG_LEVEL", "INFO").upper()
-	level_value: int = getattr(logging, level_name, logging.INFO)
-	logging.basicConfig(
-		level=level_value
-	)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -45,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
 
 	Returns a POSIX-style exit code where 0 indicates success.
 	"""
-	_setup_logging()
+	setup_logging()
 	args = _parse_args(argv)
 
 	config = Config.load()

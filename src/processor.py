@@ -9,7 +9,7 @@ from .validation import validate_customer
 
 logger = logging.getLogger(__name__)
 
-def process_csv(path: str, config: Config, age_limit: AgeLimit, client: ShowAdsClient) -> None:
+def process_csv(path: str, config: Config, age_limit: AgeLimit, client: ShowAdsClient) -> tuple[int, int]:
     source = CsvSource(Path(path))
 
     logger.info(f"Processing CSV file: {path}")
@@ -34,7 +34,9 @@ def process_csv(path: str, config: Config, age_limit: AgeLimit, client: ShowAdsC
     if buffer:
         _show_banners_with_fallback(client, buffer)
 
-    logger.info(f"Processed customers: {valid_customers} valid, {invalid_customers} invalid")
+    logger.info(f"Processed customers: {valid_customers} valid, {invalid_customers} invalid (skipped)")
+
+    return valid_customers, invalid_customers
 
 def _show_banners_with_fallback(client: ShowAdsClient, banners: list[Banner]) -> None:
     """Show banners in bulk, falling back to single banner requests if bulk fails."""
