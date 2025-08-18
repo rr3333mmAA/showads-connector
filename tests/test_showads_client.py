@@ -13,6 +13,7 @@ def make_config(**overrides) -> Config:
         token_expiry_seconds=84600,
         max_retries=5,
         retry_backoff_seconds=2,
+        bulk_batch_size=1000,
     )
     base.update(overrides)
     return Config(**base)
